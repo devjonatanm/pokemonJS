@@ -1,5 +1,5 @@
 body {
-  background: #12151A;
+  background: #12151a;
   color: #e2e2e2;
   margin: 0;
   font-family: rubik;
@@ -32,8 +32,8 @@ h2 {
   text-align: center;
   border-radius: 15px;
   position: relative;
-  background-color: #1A1D20;
-  border: .3rem solid var(--type-color);
+  background-color: #1a1d20;
+  border: 0.3rem solid var(--type-color);
 }
 
 .card::after {

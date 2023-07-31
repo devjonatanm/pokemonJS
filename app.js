@@ -42,7 +42,7 @@ const getPokemonsType = async (pokeApiResults) => {
 const getpokemonsIds = (pokeApiResults) =>
   pokeApiResults.map(({ url }) => {
     const urlAsArray = DOMPurify.sanitize(url).split("/");
-    return urlAsArray.at(urlAsArray.length - 2);
+    return urlAsArray[urlAsArray.length - 2];
   });
 
 const getPokemonsImgs = async (ids) => {
@@ -53,13 +53,23 @@ const getPokemonsImgs = async (ids) => {
   return fulfilled.map((response) => response.value.url);
 };
 
-const limit = 15;
-let offset = 0;
+//Singleton
+const paginationInfo = (() => {
+  const limit = 15;
+  let offset = 0;
+
+  const getLimit = () => limit;
+  const getOffset = () => offset;
+  const incrementOffset = () => (offset += limit);
+
+  return { getLimit, getOffset, incrementOffset };
+})();
 
 const getPokemons = async () => {
   try {
+    const { getLimit, getOffset, incrementOffset } = paginationInfo;
     const response = await fetch(
-      `https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${offset}`
+      `https://pokeapi.co/api/v2/pokemon?limit=${getLimit()}&offset=${getOffset()}`
     );
 
     if (!response.ok) {
@@ -78,7 +88,7 @@ const getPokemons = async () => {
       imgUrl: imgs[i],
     }));
 
-    offset += limit;
+    incrementOffset();
     return pokemons;
   } catch (error) {
     console.log("Algo deu errado", error);
@@ -129,14 +139,15 @@ const handleNextPokemonsRender = () => {
 
       observer.unobserve(lastPokemon.target);
 
-      if(offset === 150){
-        return
+      if (paginationInfo.getOffset() === 150) {
+        return;
       }
 
       const pokemons = await getPokemons();
       renderPokemons(pokemons);
       observeLastPokemon(pokemonsObserver);
-    }
+    },
+    { rootMargin: "500px" }
   );
 
   observeLastPokemon(pokemonsObserver);
