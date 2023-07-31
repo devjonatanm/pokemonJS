@@ -35,13 +35,13 @@ const getPokemonsType = async (pokeApiResults) => {
   const pokePromisses = fulfilled.map((url) => url.value.json());
   const pokemons = await Promise.all(pokePromisses);
   return pokemons.map((fulfilled) =>
-    fulfilled.types.map((info) => info.type.name)
+    fulfilled.types.map((info) => DOMPurify.sanitize(info.type.name))
   );
 };
 
 const getpokemonsIds = (pokeApiResults) =>
   pokeApiResults.map(({ url }) => {
-    const urlAsArray = url.split("/");
+    const urlAsArray = DOMPurify.sanitize(url).split("/");
     return urlAsArray.at(urlAsArray.length - 2);
   });
 
@@ -53,14 +53,17 @@ const getPokemonsImgs = async (ids) => {
   return fulfilled.map((response) => response.value.url);
 };
 
-const handlePageLoaded = async () => {
+const limit = 15;
+let offset = 0;
+
+const getPokemons = async () => {
   try {
     const response = await fetch(
-      "https://pokeapi.co/api/v2/pokemon?limit=15&offset=0"
+      `https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${offset}`
     );
 
     if (!response.ok) {
-      throw Error("Não foi possivel obter as informações");
+      throw new Error("Não foi possivel obter as informações");
     }
 
     // transformando em array de objetos
@@ -75,10 +78,75 @@ const handlePageLoaded = async () => {
       imgUrl: imgs[i],
     }));
 
-    console.log(pokemons);
+    offset += limit;
+    return pokemons;
   } catch (error) {
     console.log("Algo deu errado", error);
   }
+};
+
+const renderPokemons = (pokemons) => {
+  const ul = document.querySelector('[data-js="pokemons-list"]');
+  const fragment = document.createDocumentFragment();
+
+  pokemons.forEach(({ id, name, types, imgUrl }) => {
+    const li = document.createElement("li");
+    const img = document.createElement("img");
+    const nameContainer = document.createElement("h2");
+    const typeContainer = document.createElement("p");
+    const [fistType] = types;
+
+    img.setAttribute("src", imgUrl);
+    img.setAttribute("alt", name);
+    img.setAttribute("class", "card-image");
+    li.setAttribute("class", `card ${fistType}`);
+    li.style.setProperty("--type-color", getTypeColor(fistType));
+
+    nameContainer.textContent = `${id}. ${name[0].toUpperCase()}${name.slice(
+      1
+    )}`;
+    typeContainer.textContent = types.length > 1 ? types.join(" | ") : fistType;
+    li.append(img, nameContainer, typeContainer);
+
+    fragment.append(li);
+  });
+  ul.append(fragment);
+};
+
+const observeLastPokemon = (pokemonsObserver) => {
+  const lastPokemon = document.querySelector(
+    '[data-js="pokemons-list"]'
+  ).lastChild;
+  pokemonsObserver.observe(lastPokemon);
+};
+
+const handleNextPokemonsRender = () => {
+  const pokemonsObserver = new IntersectionObserver(
+    async ([lastPokemon], observer) => {
+      if (!lastPokemon.isIntersecting) {
+        return;
+      }
+
+      observer.unobserve(lastPokemon.target);
+
+      if(offset === 150){
+        return
+      }
+
+      const pokemons = await getPokemons();
+      renderPokemons(pokemons);
+      observeLastPokemon(pokemonsObserver);
+    }
+  );
+
+  observeLastPokemon(pokemonsObserver);
+};
+
+const handlePageLoaded = async () => {
+  const pokemons = await getPokemons();
+
+  renderPokemons(pokemons);
+  handleNextPokemonsRender();
 };
 
 handlePageLoaded();
